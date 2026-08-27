@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' as parser;
 
 void main() {
   runApp(const KulinareApp());
@@ -9,14 +11,31 @@ class KulinareApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Definice reálných firemních barev z grafiky
+    const goldColor = Color(0xFFC5A869);
+    const darkColor = Color(0xFF1A1A1A);
+    const lightBg = Color(0xFFF7F5F0);
+
     return MaterialApp(
       title: 'U Kulináře',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        scaffoldBackgroundColor: lightBg,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7E4A8D),
-          background: const Color(0xFFF8F9FA),
+          seedColor: goldColor,
+          primary: goldColor,
+          onPrimary: Colors.white,
+          primaryContainer: goldColor.withOpacity(0.2),
+          onPrimaryContainer: darkColor,
+          secondaryContainer: darkColor,
+          onSecondaryContainer: Colors.white,
+          surface: Colors.white,
+          background: lightBg,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: lightBg,
+          foregroundColor: darkColor,
         ),
       ),
       home: const MainScreen(),
@@ -45,7 +64,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: Theme.of(context).colorScheme.background,
       body: _pages[_currentIndex],
       bottomNavigationBar: _buildSplitFloatingBar(),
     );
@@ -62,7 +80,7 @@ class _MainScreenState extends State<MainScreen> {
             Material(
               elevation: 6,
               borderRadius: BorderRadius.circular(40),
-              color: Theme.of(context).colorScheme.secondaryContainer,
+              color: const Color(0xFF1A1A1A),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
@@ -80,7 +98,7 @@ class _MainScreenState extends State<MainScreen> {
             Material(
               elevation: 6,
               borderRadius: BorderRadius.circular(24),
-              color: Theme.of(context).colorScheme.tertiaryContainer,
+              color: const Color(0xFFC5A869),
               child: InkWell(
                 borderRadius: BorderRadius.circular(24),
                 onTap: () => setState(() => _currentIndex = 3),
@@ -88,12 +106,7 @@ class _MainScreenState extends State<MainScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Icon(
                     Icons.calendar_month,
-                    color: _currentIndex == 3
-                        ? Theme.of(context).colorScheme.onTertiaryContainer
-                        : Theme.of(context)
-                            .colorScheme
-                            .onTertiaryContainer
-                            .withOpacity(0.5),
+                    color: _currentIndex == 3 ? Colors.white : Colors.white70,
                     size: 26,
                   ),
                 ),
@@ -107,8 +120,6 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildIconItem(int index, IconData iconData) {
     final isSelected = _currentIndex == index;
-    final onSecondaryContainer =
-        Theme.of(context).colorScheme.onSecondaryContainer;
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -118,16 +129,12 @@ class _MainScreenState extends State<MainScreen> {
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? onSecondaryContainer.withOpacity(0.15)
-              : Colors.transparent,
+          color: isSelected ? const Color(0xFFC5A869) : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
         ),
         child: Icon(
           iconData,
-          color: isSelected
-              ? onSecondaryContainer
-              : onSecondaryContainer.withOpacity(0.5),
+          color: isSelected ? Colors.white : Colors.white54,
           size: 26,
         ),
       ),
@@ -146,10 +153,31 @@ class HeaderLogo extends StatelessWidget {
         child: Image.network(
           'image_e228ab.png',
           height: 70,
-          errorBuilder: (context, error, stackTrace) => const Text(
-            'U KULINÁŘE',
-            style: TextStyle(
-                fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 2),
+          errorBuilder: (context, error, stackTrace) => Column(
+            children: [
+              const Text(
+                'U KULINÁŘE',
+                style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 3,
+                    color: Color(0xFF1A1A1A)),
+              ),
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                color: const Color(0xFFC5A869),
+                child: const Text(
+                  'RESTAURANT & PENSION',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2,
+                      color: Colors.white),
+                ),
+              )
+            ],
           ),
         ),
       ),
@@ -157,19 +185,34 @@ class HeaderLogo extends StatelessWidget {
   }
 }
 
+// 1. POLEDNÍ MENU VČETNĚ NAPOJENÍ NA MENICKA.CZ
 class WeeklyDailyMenuPage extends StatelessWidget {
   const WeeklyDailyMenuPage({super.key});
 
   Future<List<Map<String, String>>> fetchTodayMenicka() async {
-    await Future.delayed(const Duration(seconds: 1));
-    return [
-      {'title': 'Frankfurtská polévka s párkem', 'price': '45 Kč'},
-      {'title': 'Svíčková na smetaně, karlovarský knedlík', 'price': '189 Kč'},
-      {
-        'title': 'Vepřová panenka, hříbková omáčka, šťouchaný brambor',
-        'price': '215 Kč'
-      },
-    ];
+    final url = Uri.parse('https://www.menicka.cz/api/iframe/?id=6405');
+    List<Map<String, String>> menu = [];
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        var document = parser.parse(response.body);
+        var jidla = document.querySelectorAll('.menicka');
+
+        for (var jidlo in jidla) {
+          String nazev = jidlo.querySelector('.nazev')?.text.trim() ?? '';
+          String cena = jidlo.querySelector('.cena')?.text.trim() ?? '';
+
+          if (nazev.isNotEmpty) {
+            menu.add({'title': nazev, 'price': cena});
+          }
+        }
+        return menu;
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
   }
 
   @override
@@ -190,7 +233,10 @@ class WeeklyDailyMenuPage extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           child: Text('Týdenní menu',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
         ),
         const SizedBox(height: 8),
         ...List.generate(5, (index) {
@@ -227,8 +273,8 @@ class WeeklyDailyMenuPage extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
                         color: isToday
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.black87,
+                            ? const Color(0xFFC5A869)
+                            : const Color(0xFF1A1A1A),
                       ),
                     ),
                     if (isToday) ...[
@@ -237,16 +283,14 @@ class WeeklyDailyMenuPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
+                          color: const Color(0xFFC5A869),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text("DNES",
+                        child: const Text("DNES",
                             style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer)),
+                                color: Colors.white)),
                       )
                     ]
                   ],
@@ -259,13 +303,19 @@ class WeeklyDailyMenuPage extends StatelessWidget {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator());
+                            padding: EdgeInsets.all(24.0),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFFC5A869))),
+                          );
                         }
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text('Menu není dostupné.'));
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                                'Dnešní menu se nepodařilo načíst z Menicka.cz.',
+                                style: TextStyle(color: Colors.grey)),
+                          );
                         }
                         return Column(
                           children: snapshot.data!
@@ -281,12 +331,15 @@ class WeeklyDailyMenuPage extends StatelessWidget {
                                         Expanded(
                                             child: Text(item['title']!,
                                                 style: const TextStyle(
-                                                    fontSize: 15))),
+                                                    fontSize: 15,
+                                                    fontWeight:
+                                                        FontWeight.w500))),
                                         const SizedBox(width: 16),
                                         Text(item['price']!,
                                             style: const TextStyle(
                                                 fontSize: 15,
-                                                fontWeight: FontWeight.bold)),
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFC5A869))),
                                       ],
                                     ),
                                   ))
@@ -310,6 +363,7 @@ class WeeklyDailyMenuPage extends StatelessWidget {
   }
 }
 
+// 2. STÁLÝ LÍSTEK
 class StandardMenuPage extends StatefulWidget {
   const StandardMenuPage({super.key});
 
@@ -787,12 +841,15 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
-              Icon(Icons.info_outline,
-                  color: Theme.of(context).colorScheme.primary),
+              const Icon(Icons.info_outline, color: Color(0xFFC5A869)),
               const SizedBox(width: 8),
-              Text('Alergen $code'),
+              Text('Alergen $code',
+                  style: const TextStyle(color: Color(0xFF1A1A1A))),
             ],
           ),
           content: Text(
@@ -802,7 +859,9 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ZAVŘÍT'),
+              child: const Text('ZAVŘÍT',
+                  style: TextStyle(
+                      color: Color(0xFFC5A869), fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -822,34 +881,44 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.0),
           child: Text('Stálý lístek',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A))),
         ),
         const SizedBox(height: 16),
-
-        // ZDE JE ZMĚNA: Použili jsme prvek Wrap, který kategorie zalomí na další řádky
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Wrap(
-            spacing: 8.0, // Mezera mezi kategoriemi horizontálně
-            runSpacing: 8.0, // Mezera mezi řádky vertikálně
-            children: categories
-                .map((cat) => ChoiceChip(
-                      label: Text(cat),
-                      selected: selectedCategory == cat,
-                      onSelected: (bool selected) {
-                        setState(() => selectedCategory = cat);
-                      },
-                      selectedColor:
-                          Theme.of(context).colorScheme.primaryContainer,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                    ))
-                .toList(),
+            spacing: 8.0,
+            runSpacing: 8.0,
+            children: categories.map((cat) {
+              final isSelected = selectedCategory == cat;
+              return ChoiceChip(
+                label: Text(cat,
+                    style: TextStyle(
+                        color:
+                            isSelected ? Colors.white : const Color(0xFF1A1A1A),
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal)),
+                selected: isSelected,
+                onSelected: (bool selected) {
+                  setState(() => selectedCategory = cat);
+                },
+                selectedColor: const Color(0xFFC5A869),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                      color: isSelected
+                          ? const Color(0xFFC5A869)
+                          : Colors.black12),
+                ),
+              );
+            }).toList(),
           ),
         ),
-
         const SizedBox(height: 16),
-
         ...filteredItems.map((item) {
           final List<String> itemAllergens =
               List<String>.from(item['allergens'] ?? []);
@@ -877,12 +946,14 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
                     Expanded(
                         child: Text(item['name']!,
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold))),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A)))),
                     Text(item['price']!,
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87)),
+                            color: Color(0xFFC5A869))),
                   ],
                 ),
                 if (desc.isNotEmpty) ...[
@@ -905,23 +976,15 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .secondaryContainer
-                                      .withOpacity(0.5),
+                                  color:
+                                      const Color(0xFF1A1A1A).withOpacity(0.06),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .secondaryContainer),
                                 ),
                                 child: Text(code,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSecondaryContainer)),
+                                        color: Color(0xFF1A1A1A))),
                               ),
                             ))
                         .toList(),
@@ -936,6 +999,7 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
   }
 }
 
+// 3. REZERVACE
 class ReservationPage extends StatefulWidget {
   const ReservationPage({super.key});
 
@@ -952,6 +1016,18 @@ class _ReservationPageState extends State<ReservationPage> {
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 60)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFC5A869),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1A1A1A),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() => selectedDate = picked);
@@ -976,18 +1052,28 @@ class _ReservationPageState extends State<ReservationPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text('Rezervace stolu',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
               const SizedBox(height: 24),
-              FilledButton.tonalIcon(
+              OutlinedButton.icon(
                 onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today),
-                label: Text(selectedDate == null
-                    ? 'Vyberte datum rezervace'
-                    : '${selectedDate!.day}. ${selectedDate!.month}. ${selectedDate!.year}'),
-                style: FilledButton.styleFrom(
+                icon:
+                    const Icon(Icons.calendar_today, color: Color(0xFFC5A869)),
+                label: Text(
+                  selectedDate == null
+                      ? 'Vyberte datum rezervace'
+                      : '${selectedDate!.day}. ${selectedDate!.month}. ${selectedDate!.year}',
+                  style: const TextStyle(
+                      color: Color(0xFF1A1A1A), fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: const BorderSide(color: Color(0xFFC5A869), width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
+                  backgroundColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 24),
@@ -995,24 +1081,25 @@ class _ReservationPageState extends State<ReservationPage> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
+                    color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
+                  child: const Column(
                     children: [
-                      Icon(Icons.warning_amber_rounded,
-                          size: 48, color: Theme.of(context).colorScheme.error),
-                      const SizedBox(height: 16),
-                      const Text(
+                      Icon(Icons.phone_in_talk,
+                          size: 48, color: Color(0xFFC5A869)),
+                      SizedBox(height: 16),
+                      Text(
                         'Rezervace na dnešek prosím volejte přímo do restaurace na tel.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
-                      const SizedBox(height: 8),
-                      const Text('379 482 328',
+                      SizedBox(height: 8),
+                      Text('379 482 328',
                           style: TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold)),
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFC5A869))),
                     ],
                   ),
                 )
@@ -1078,7 +1165,7 @@ class _ReservationPageState extends State<ReservationPage> {
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
+                      child: ElevatedButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -1088,12 +1175,12 @@ class _ReservationPageState extends State<ReservationPage> {
                             ),
                           );
                         },
-                        style: FilledButton.styleFrom(
+                        style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.all(20),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
+                          backgroundColor: const Color(0xFFC5A869),
+                          foregroundColor: Colors.white,
                         ),
                         child: const Text('Odeslat rezervaci',
                             style: TextStyle(
@@ -1110,15 +1197,144 @@ class _ReservationPageState extends State<ReservationPage> {
   }
 }
 
+// 4. KONTAKTNÍ STRÁNKA
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.only(bottom: 120),
-      children: const [
-        HeaderLogo(),
-        Center(child: Text('Kontaktní údaje (Připravujeme)')),
+      children: [
+        const HeaderLogo(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Kontakt & Kde nás najdete',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A))),
+              const SizedBox(height: 16),
+
+              // Kartička s adresou a telefonem
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Color(0xFFC5A869)),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text('Náměstí Míru 51, 344 01 Domažlice',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    Divider(height: 24),
+                    Row(
+                      children: [
+                        Icon(Icons.phone, color: Color(0xFFC5A869)),
+                        SizedBox(width: 12),
+                        Text('+420 379 482 328',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.email, color: Color(0xFFC5A869)),
+                        SizedBox(width: 12),
+                        Text('ukulinare@seznam.cz',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Otevírací doba
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
+                  ],
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.access_time_filled,
+                            color: Color(0xFFC5A869)),
+                        SizedBox(width: 12),
+                        Text('Otevírací doba',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Pondělí – Čtvrtek',
+                            style: TextStyle(fontSize: 15)),
+                        Text('10:30 – 22:00',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Pátek – Sobota', style: TextStyle(fontSize: 15)),
+                        Text('10:30 – 23:00',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Neděle', style: TextStyle(fontSize: 15)),
+                        Text('11:00 – 21:00',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
