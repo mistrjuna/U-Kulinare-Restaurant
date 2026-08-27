@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
+import 'dart:convert';
 
 void main() {
   runApp(const KulinareApp());
@@ -12,7 +12,6 @@ class KulinareApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Definice reálných firemních barev z grafiky
     const goldColor = Color(0xFFC5A869);
     const darkColor = Color(0xFF1A1A1A);
     const lightBg = Color(0xFFF7F5F0);
@@ -33,10 +32,6 @@ class KulinareApp extends StatelessWidget {
           onSecondaryContainer: Colors.white,
           surface: Colors.white,
           background: lightBg,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: lightBg,
-          foregroundColor: darkColor,
         ),
       ),
       home: const MainScreen(),
@@ -151,31 +146,22 @@ class HeaderLogo extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.only(top: 60.0, bottom: 20.0),
-        child: Image.network(
-          'image_e228ab.png',
+        child: Image.asset(
+          'assets/logo_new_2025.png',
           height: 70,
           errorBuilder: (context, error, stackTrace) => Column(
             children: [
               const Text(
                 'U KULINÁŘE',
-                style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 3,
-                    color: Color(0xFF1A1A1A)),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3, color: Color(0xFF1A1A1A)),
               ),
               Container(
                 margin: const EdgeInsets.only(top: 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                 color: const Color(0xFFC5A869),
                 child: const Text(
                   'RESTAURANT & PENSION',
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 2,
-                      color: Colors.white),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 2, color: Colors.white),
                 ),
               )
             ],
@@ -186,7 +172,6 @@ class HeaderLogo extends StatelessWidget {
   }
 }
 
-// 1. POLEDNÍ MENU VČETNĚ NAPOJENÍ NA MENICKA.CZ
 class WeeklyDailyMenuPage extends StatelessWidget {
   const WeeklyDailyMenuPage({super.key});
 
@@ -199,22 +184,21 @@ class WeeklyDailyMenuPage extends StatelessWidget {
         url,
         headers: {
           'User-Agent':
-              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
       );
 
       if (response.statusCode == 200) {
-        // Dekódování češtiny z latin1/windows-1250
         String responseBody = latin1.decode(response.bodyBytes);
         var document = parser.parse(responseBody);
+        var rows = document.querySelectorAll('.menicka, tr');
 
-        var jidla = document.querySelectorAll('.menicka');
+        for (var row in rows) {
+          String nazev = row.querySelector('.nazev')?.text.trim() ?? '';
+          String cena = row.querySelector('.cena')?.text.trim() ?? '';
 
-        for (var jidlo in jidla) {
-          String nazev = jidlo.querySelector('.nazev')?.text.trim() ?? '';
-          String cena = jidlo.querySelector('.cena')?.text.trim() ?? '';
-
-          if (nazev.isNotEmpty) {
+          if (nazev.isNotEmpty &&
+              !menu.any((element) => element['title'] == nazev)) {
             menu.add({'title': nazev, 'price': cena});
           }
         }
@@ -374,7 +358,6 @@ class WeeklyDailyMenuPage extends StatelessWidget {
   }
 }
 
-// 2. STÁLÝ LÍSTEK
 class StandardMenuPage extends StatefulWidget {
   const StandardMenuPage({super.key});
 
@@ -1010,7 +993,6 @@ class _StandardMenuPageState extends State<StandardMenuPage> {
   }
 }
 
-// 3. REZERVACE
 class ReservationPage extends StatefulWidget {
   const ReservationPage({super.key});
 
@@ -1208,7 +1190,6 @@ class _ReservationPageState extends State<ReservationPage> {
   }
 }
 
-// 4. KONTAKTNÍ STRÁNKA
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
 
@@ -1229,8 +1210,6 @@ class ContactPage extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A))),
               const SizedBox(height: 16),
-
-              // Kartička s adresou a telefonem
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -1280,10 +1259,7 @@ class ContactPage extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              // Otevírací doba
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
