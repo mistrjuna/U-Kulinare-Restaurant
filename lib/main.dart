@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
@@ -194,9 +195,19 @@ class WeeklyDailyMenuPage extends StatelessWidget {
     List<Map<String, String>> menu = [];
 
     try {
-      final response = await http.get(url);
+      final response = await http.get(
+        url,
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        },
+      );
+
       if (response.statusCode == 200) {
-        var document = parser.parse(response.body);
+        // Dekódování češtiny z latin1/windows-1250
+        String responseBody = latin1.decode(response.bodyBytes);
+        var document = parser.parse(responseBody);
+
         var jidla = document.querySelectorAll('.menicka');
 
         for (var jidlo in jidla) {
